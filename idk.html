@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ghost Hunter</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #111;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            overflow: hidden; /* Prevent scrollbars in fullscreen */
+        }
+
+        canvas {
+            border: 2px solid #444;
+            display: block; /* Fixes potential spacing issues */
+        }
+
+        .game-container {
+            text-align: center;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            color: #a44;
+            text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+        }
+
+        .instructions {
+            margin-top: 20px;
+            background-color: #222;
+            padding: 15px;
+            border-radius: 5px;
+            max-width: 800px;
+            text-align: left;
+        }
+
+        .instructions h2 {
+            color: #4a4;
+            margin-top: 0;
+        }
+
+        .controls-bar {
+            margin-top: 10px;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #333;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #555;
+        }
+
+        button:focus {
+            outline: none; /* Remove default focus outline */
+        }
+
+        /* Fullscreen canvas style (optional, adjust as needed) */
+        canvas:-webkit-full-screen {
+            width: 100%;
+            height: 100%;
+        }
+        canvas:-moz-full-screen {
+            width: 100%;
+            height: 100%;
+        }
+        canvas:full-screen {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>Ghost Hunter</h1>
+        <canvas id="gameCanvas" width="1200" height="900"></canvas>
+        <div class="controls-bar">
+            <button id="fullscreenButton">Fullscreen</button>
+        </div>
+        <div class="instructions">
+            <h2>Instructions</h2>
+            <p><strong>Controls:</strong></p>
+            <ul>
+                <li>WASD or Arrow Keys - Move the ghost hunter</li>
+                <li>SPACE - Use weapon (has limited range)</li>
+                <li>R - Restart game when game over</li>
+                <li>F or Fullscreen Button - Toggle Canvas Fullscreen Mode</li>
+            </ul>
+            <p><strong>Objective:</strong> Hunt down the AI ghost that's hiding in the dungeon. The ghost has adaptive AI that will try to evade you, hide, and sometimes attack you.</p>
+            <p><strong>Features:</strong></p>
+            <ul>
+                <li>Randomly generated rooms each level</li>
+                <li>Ghost AI that hunts, hides, and attacks</li>
+                <li>Ghost can become invisible temporarily</li>
+                <li>Each level increases the ghost's difficulty</li>
+                <li><strong>Power-ups:</strong> Find health and speed boost power-ups in the dungeon.</li>
+                <li><strong>Fullscreen Mode:</strong> Play the game in fullscreen canvas for better immersion.</li>
+                <li><strong>Sound Effects:</strong> Weapon fire and ghost hit sounds for enhanced feedback.</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Ghost Hunter - A top-down ghost hunting game
+        // Main game script
+
+        // Canvas setup
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 1200; // Increased width
+        canvas.height = 900; // Increased height
+
+        // Game constants
+        const TILE_SIZE = 40;
+        const ROOM_MIN_SIZE = 5; // Slightly increased min room size
+        const ROOM_MAX_SIZE = 12; // Slightly increased max room size
+        const MAX_ROOMS = 25; // Increased max rooms for bigger map
+        const PLAYER_SPEED = 3;
+        const PLAYER_BOOSTED_SPEED = 5; // Speed boost value
+        const GHOST_SPEED = 2;
+        const GHOST_SIGHT_RANGE = 250; // Increased sight range for bigger map
+        const GHOST_HIDE_COOLDOWN = 180; // frames
+        const WEAPON_RANGE = 150;
+        const WEAPON_COOLDOWN = 30; // frames
+        const POWERUP_CHANCE = 0.02; // Chance to spawn a power-up in a room
+
+        // Game state
+        let gameState = {
+          map: [],
+          rooms: [],
+          player: {
+            x: 0,
+            y: 0,
+            width: 30,
+            height: 30,
+            weapon: {
+              cooldown: 0,
+              range: WEAPON_RANGE,
+              damage: 25
+            },
+            health: 100,
+            score: 0,
+            speedBoostActive: false,
+            speedBoostTimer: 0
+          },
+          ghost: {
+            x: 0,
+            y: 0,
+            width: 30,
+            height: 30,
+            health: 100,
+            isVisible: true,
+            hideCooldown: 0,
+            state: 'wandering', // wandering, hunting, hiding
+            lastKnownPlayerPos: { x: 0, y: 0 }
+          },
+          keys: {
+            up: false,
+            down: false,
+            left: false,
+            right: false,
+            shoot: false
+          },
+          gameOver: false,
+          level: 1,
+          powerUps: [], // Array to hold power-ups in the level
+          sounds: { // Sound effects
+            shoot: new Audio(),
+            ghostHit: new Audio(),
+            powerUpPickup: new Audio()
+          }
+        };
+
+        // Initialize game sounds
+        gameState.sounds.shoot.src = 'shoot.wav'; // Replace 'shoot.wav' with your sound file
+        gameState.sounds.ghostHit.src = 'ghost_hit.wav'; // Replace 'ghost_hit.wav' with your sound file
+        gameState.sounds.powerUpPickup.src = 'powerup.wav'; // Replace 'powerup.wav' with your sound file
+
+
+        // Initialize game
+        function initGame() {
+          generateMap();
+          placeEntities();
+          gameState.gameOver = false;
+          gameState.ghost.health = 100 + (gameState.level - 1) * 25; // Ghost gets stronger each level
+          gameState.ghost.isVisible = true;
+          gameState.ghost.state = 'wandering';
+          gameState.powerUps = []; // Clear power-ups for new level
+          gameState.player.speedBoostActive = false; // Reset speed boost
+          gameState.player.speedBoostTimer = 0;
+        }
+
+        // Generate random dungeon
+        function generateMap() {
+          // Initialize empty map
+          gameState.map = [];
+          gameState.rooms = [];
+
+          // Fill map with walls
+          const mapWidth = Math.floor(canvas.width / TILE_SIZE);
+          const mapHeight = Math.floor(canvas.height / TILE_SIZE);
+
+          for (let y = 0; y < mapHeight; y++) {
+            gameState.map[y] = [];
+            for (let x = 0; x < mapWidth; x++) {
+              gameState.map[y][x] = 1; // 1 = wall
+            }
+          }
+
+          // Create rooms
+          for (let i = 0; i < MAX_ROOMS; i++) {
+            // Random room size
+            const roomWidth = Math.floor(Math.random() * (ROOM_MAX_SIZE - ROOM_MIN_SIZE + 1)) + ROOM_MIN_SIZE;
+            const roomHeight = Math.floor(Math.random() * (ROOM_MAX_SIZE - ROOM_MIN_SIZE + 1)) + ROOM_MIN_SIZE;
+
+            // Random room position
+            const roomX = Math.floor(Math.random() * (mapWidth - roomWidth - 2)) + 1;
+            const roomY = Math.floor(Math.random() * (mapHeight - roomHeight - 2)) + 1;
+
+            // Check if room overlaps with existing rooms
+            let overlaps = false;
+            const newRoom = { x: roomX, y: roomY, width: roomWidth, height: roomHeight };
+
+            for (const room of gameState.rooms) {
+              if (roomX <= room.x + room.width + 1 &&
+                  roomX + roomWidth >= room.x - 1 &&
+                  roomY <= room.y + room.height + 1 &&
+                  roomY + roomHeight >= room.y - 1) {
+                overlaps = true;
+                break;
+              }
+            }
+
+            if (!overlaps) {
+              // Carve out room
+              for (let y = roomY; y < roomY + roomHeight; y++) {
+                for (let x = roomX; x < roomX + roomWidth; x++) {
+                  gameState.map[y][x] = 0; // 0 = floor
+                }
+              }
+
+              // Connect with previous room
+              if (gameState.rooms.length > 0) {
+                const prevRoom = gameState.rooms[gameState.rooms.length - 1];
+                const startX = Math.floor(prevRoom.x + prevRoom.width / 2);
+                const startY = Math.floor(prevRoom.y + prevRoom.height / 2);
+                const endX = Math.floor(newRoom.x + newRoom.width / 2);
+                const endY = Math.floor(newRoom.y + newRoom.height / 2);
+
+                // Create horizontal corridor
+                for (let x = Math.min(startX, endX); x <= Math.max(startX, endX); x++) {
+                  gameState.map[startY][x] = 0;
+                }
+
+                // Create vertical corridor
+                for (let y = Math.min(startY, endY); y <= Math.max(startY, endY); y++) {
+                  gameState.map[y][endX] = 0;
+                }
+              }
+
+              gameState.rooms.push(newRoom);
+
+              // Randomly place power-up in room
+              if (Math.random() < POWERUP_CHANCE) {
+                placePowerUpInRoom(newRoom);
+              }
+            }
+          }
+        }
+
+        // Place power-up in a room
+        function placePowerUpInRoom(room) {
+            const powerUpTypes = ['health', 'speed'];
+            const powerUpType = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
+
+            const powerUpX = (room.x + Math.floor(room.width / 2)) * TILE_SIZE;
+            const powerUpY = (room.y + Math.floor(room.height / 2)) * TILE_SIZE;
+
+            gameState.powerUps.push({
+                x: powerUpX,
+                y: powerUpY,
+                type: powerUpType,
+                width: 20,
+                height: 20
+            });
+        }
+
+
+        // Place player and ghost in different rooms
+        function placeEntities() {
+          if (gameState.rooms.length < 2) {
+            initGame(); // Retry if not enough rooms
+            return;
+          }
+
+          // Place player in first room
+          const startRoom = gameState.rooms[0];
+          gameState.player.x = (startRoom.x + Math.floor(startRoom.width / 2)) * TILE_SIZE;
+          gameState.player.y = (startRoom.y + Math.floor(startRoom.height / 2)) * TILE_SIZE;
+
+          // Place ghost in last room
+          const ghostRoom = gameState.rooms[gameState.rooms.length - 1];
+          gameState.ghost.x = (ghostRoom.x + Math.floor(ghostRoom.width / 2)) * TILE_SIZE;
+          gameState.ghost.y = (ghostRoom.y + Math.floor(ghostRoom.height / 2)) * TILE_SIZE;
+        }
+
+        // Update game state
+        function update() {
+          if (gameState.gameOver) return;
+
+          // Update player speed (boost)
+          let playerSpeed = PLAYER_SPEED;
+          if (gameState.player.speedBoostActive) {
+              playerSpeed = PLAYER_BOOSTED_SPEED;
+              gameState.player.speedBoostTimer--;
+              if (gameState.player.speedBoostTimer <= 0) {
+                  gameState.player.speedBoostActive = false;
+              }
+          }
+
+          // Update player position based on input
+          let dx = 0;
+          let dy = 0;
+
+          if (gameState.keys.up) dy -= playerSpeed;
+          if (gameState.keys.down) dy += playerSpeed;
+          if (gameState.keys.left) dx -= playerSpeed;
+          if (gameState.keys.right) dx += playerSpeed;
+
+          // Normalize diagonal movement
+          if (dx !== 0 && dy !== 0) {
+            dx *= 0.7071; // 1/sqrt(2)
+            dy *= 0.7071;
+          }
+
+          // Check collision with walls
+          const newX = gameState.player.x + dx;
+          const newY = gameState.player.y + dy;
+
+          if (!collidesWithWall(newX, newY, gameState.player.width, gameState.player.height)) {
+            gameState.player.x = newX;
+            gameState.player.y = newY;
+          } else if (!collidesWithWall(newX, gameState.player.y, gameState.player.width, gameState.player.height)) {
+            gameState.player.x = newX;
+          } else if (!collidesWithWall(gameState.player.x, newY, gameState.player.width, gameState.player.height)) {
+            gameState.player.y = newY;
+          }
+
+          // Update weapon cooldown
+          if (gameState.player.weapon.cooldown > 0) {
+            gameState.player.weapon.cooldown--;
+          }
+
+          // Handle shooting
+          if (gameState.keys.shoot && gameState.player.weapon.cooldown === 0) {
+            useWeapon();
+            gameState.player.weapon.cooldown = WEAPON_COOLDOWN;
+          }
+
+          // Update ghost AI
+          updateGhost();
+
+          // Check for power-up pickup
+          checkPowerUpPickup();
+
+          // Check win/lose conditions
+          if (gameState.ghost.health <= 0) {
+            // Ghost defeated - next level
+            gameState.level++;
+            gameState.player.score += 100 * gameState.level;
+            initGame();
+          }
+
+          if (gameState.player.health <= 0) {
+            gameState.gameOver = true;
+          }
+        }
+
+        // Check for power-up pickup
+        function checkPowerUpPickup() {
+            for (let i = 0; i < gameState.powerUps.length; i++) {
+                const powerUp = gameState.powerUps[i];
+                if (intersectRect(gameState.player, powerUp)) {
+                    // Apply power-up effect
+                    if (powerUp.type === 'health') {
+                        gameState.player.health = Math.min(100, gameState.player.health + 50); // Restore health, max 100
+                    } else if (powerUp.type === 'speed') {
+                        gameState.player.speedBoostActive = true;
+                        gameState.player.speedBoostTimer = 300; // 5 seconds at 60fps
+                    }
+                    gameState.sounds.powerUpPickup.play();
+                    gameState.powerUps.splice(i, 1); // Remove power-up
+                    i--; // Adjust index after removal
+                }
+            }
+        }
+
+        // Helper function to check rectangle intersection
+        function intersectRect(rect1, rect2) {
+            return (
+                rect1.x < rect2.x + rect2.width &&
+                rect1.x + rect1.width > rect2.x &&
+                rect1.y < rect2.y + rect2.height &&
+                rect1.y + rect1.height > rect2.y
+            );
+        }
+
+
+        // Update ghost AI behavior
+        function updateGhost() {
+          // Update ghost hiding cooldown
+          if (gameState.ghost.hideCooldown > 0) {
+            gameState.ghost.hideCooldown--;
+            if (gameState.ghost.hideCooldown === 0) {
+              gameState.ghost.isVisible = true;
+            }
+          }
+
+          // Calculate distance to player
+          const dx = gameState.player.x - gameState.ghost.x;
+          const dy = gameState.player.y - gameState.ghost.y;
+          const distToPlayer = Math.sqrt(dx * dx + dy * dy);
+
+          // Check line of sight to player
+          const canSeePlayer = distToPlayer < GHOST_SIGHT_RANGE && hasLineOfSight(
+            gameState.ghost.x,
+            gameState.ghost.y,
+            gameState.player.x,
+            gameState.player.y
+          );
+
+          // Update ghost state based on conditions
+          if (canSeePlayer) {
+            gameState.ghost.state = 'hunting';
+            gameState.ghost.lastKnownPlayerPos.x = gameState.player.x;
+            gameState.ghost.lastKnownPlayerPos.y = gameState.player.y;
+          } else if (gameState.ghost.state === 'hunting' &&
+                    Math.abs(gameState.ghost.x - gameState.ghost.lastKnownPlayerPos.x) < 20 &&
+                    Math.abs(gameState.ghost.y - gameState.ghost.lastKnownPlayerPos.y) < 20) {
+            // Lost track of player at last known position
+            gameState.ghost.state = 'wandering';
+          }
+
+          // Ghost movement based on state
+          let ghostSpeed = GHOST_SPEED * (1 + gameState.level * 0.1); // Ghost gets faster each level
+
+          if (gameState.ghost.state === 'wandering') {
+            // Random wandering movement
+            if (Math.random() < 0.05) {
+              gameState.ghost.wanderDir = {
+                x: Math.random() * 2 - 1,
+                y: Math.random() * 2 - 1
+              };
+
+              // Normalize direction
+              const magnitude = Math.sqrt(
+                gameState.ghost.wanderDir.x * gameState.ghost.wanderDir.x +
+                gameState.ghost.wanderDir.y * gameState.ghost.wanderDir.y
+              );
+
+              if (magnitude > 0) {
+                gameState.ghost.wanderDir.x /= magnitude;
+                gameState.ghost.wanderDir.y /= magnitude;
+              }
+            }
+
+            if (gameState.ghost.wanderDir) {
+              const newX = gameState.ghost.x + gameState.ghost.wanderDir.x * ghostSpeed;
+              const newY = gameState.ghost.y + gameState.ghost.wanderDir.y * ghostSpeed;
+
+              if (!collidesWithWall(newX, newY, gameState.ghost.width, gameState.ghost.height)) {
+                gameState.ghost.x = newX;
+                gameState.ghost.y = newY;
+              } else {
+                // Hit wall, change direction
+                gameState.ghost.wanderDir = null;
+              }
+            }
+          } else if (gameState.ghost.state === 'hunting') {
+            // Move toward player or last known position
+            const targetX = gameState.ghost.lastKnownPlayerPos.x;
+            const targetY = gameState.ghost.lastKnownPlayerPos.y;
+
+            const dx = targetX - gameState.ghost.x;
+            const dy = targetY - gameState.ghost.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist > 0) {
+              const vx = (dx / dist) * ghostSpeed;
+              const vy = (dy / dist) * ghostSpeed;
+
+              const newX = gameState.ghost.x + vx;
+              const newY = gameState.ghost.y + vy;
+
+              if (!collidesWithWall(newX, newY, gameState.ghost.width, gameState.ghost.height)) {
+                gameState.ghost.x = newX;
+                gameState.ghost.y = newY;
+              } else if (!collidesWithWall(newX, gameState.ghost.y, gameState.ghost.width, gameState.ghost.height)) {
+                gameState.ghost.x = newX;
+              } else if (!collidesWithWall(gameState.ghost.x, newY, gameState.ghost.width, gameState.ghost.height)) {
+                gameState.ghost.y = newY;
+              }
+            }
+
+            // Occasionally become invisible when hunting
+            if (gameState.ghost.isVisible && Math.random() < 0.005 * gameState.level) {
+              gameState.ghost.isVisible = false;
+              gameState.ghost.hideCooldown = GHOST_HIDE_COOLDOWN;
+            }
+          }
+
+          // Ghost attack player when close
+          if (distToPlayer < 50) {
+            // Ghost damages player
+            gameState.player.health -= 0.5 * gameState.level;
+          }
+        }
+
+        // Use weapon against ghost
+        function useWeapon() {
+          if (!gameState.ghost.isVisible) return;
+
+          const dx = gameState.ghost.x - gameState.player.x;
+          const dy = gameState.ghost.y - gameState.player.y;
+          const distToGhost = Math.sqrt(dx * dx + dy * dy);
+
+          if (distToGhost <= gameState.player.weapon.range) {
+            // Hit ghost
+            gameState.ghost.health -= gameState.player.weapon.damage;
+            gameState.sounds.ghostHit.play();
+
+            // Ghost becomes more likely to hide when hit
+            if (Math.random() < 0.3 && gameState.ghost.isVisible) {
+              gameState.ghost.isVisible = false;
+              gameState.ghost.hideCooldown = GHOST_HIDE_COOLDOWN;
+            }
+          }
+          gameState.sounds.shoot.play(); // Play shoot sound
+        }
+
+        // Check if entity collides with walls
+        function collidesWithWall(x, y, width, height) {
+          const mapWidth = gameState.map[0].length;
+          const mapHeight = gameState.map.length;
+
+          // Check each corner of the entity
+          const points = [
+            { x: x, y: y },
+            { x: x + width, y: y },
+            { x: x, y: y + height },
+            { x: x + width, y: y + height }
+          ];
+
+          for (const point of points) {
+            const tileX = Math.floor(point.x / TILE_SIZE);
+            const tileY = Math.floor(point.y / TILE_SIZE);
+
+            if (tileX < 0 || tileX >= mapWidth || tileY < 0 || tileY >= mapHeight ||
+                gameState.map[tileY][tileX] === 1) {
+              return true;
+            }
+          }
+
+          return false;
+        }
+
+        // Check if there's a clear line of sight between two points
+        function hasLineOfSight(x1, y1, x2, y2) {
+          // Bresenham's line algorithm
+          const dx = Math.abs(x2 - x1);
+          const dy = Math.abs(y2 - y1);
+          const sx = x1 < x2 ? 1 : -1;
+          const sy = y1 < y2 ? 1 : -1;
+          let err = dx - dy;
+
+          let currentX = x1;
+          let currentY = y1;
+
+          while (true) {
+            // Check if we've reached the end point
+            if (currentX === x2 && currentY === y2) {
+              return true;
+            }
+
+            // Check if current point is a wall
+            const tileX = Math.floor(currentX / TILE_SIZE);
+            const tileY = Math.floor(currentY / TILE_SIZE);
+
+            if (tileX < 0 || tileX >= gameState.map[0].length ||
+                tileY < 0 || tileY >= gameState.map.length) {
+              return false;
+            }
+
+            if (gameState.map[tileY][tileX] === 1) {
+              return false;
+            }
+
+            // Move to next point
+            const e2 = 2 * err;
+            if (e2 > -dy) {
+              err -= dy;
+              currentX += sx;
+            }
+            if (e2 < dx) {
+              err += dx;
+              currentY += sy;
+            }
+          }
+        }
+
+        // Render game
+        function render() {
+          // Clear canvas
+          ctx.fillStyle = '#111';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          // Draw map
+          for (let y = 0; y < gameState.map.length; y++) {
+            for (let x = 0; x < gameState.map[y].length; x++) {
+              if (gameState.map[y][x] === 1) {
+                // Wall
+                ctx.fillStyle = '#444';
+                ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+              } else {
+                // Floor
+                ctx.fillStyle = '#222';
+                ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+              }
+            }
+          }
+
+          // Draw power-ups
+          gameState.powerUps.forEach(powerUp => {
+              ctx.fillStyle = powerUp.type === 'health' ? 'green' : 'yellow';
+              ctx.fillRect(powerUp.x, powerUp.y, powerUp.width, powerUp.height);
+              ctx.strokeStyle = '#fff';
+              ctx.lineWidth = 2;
+              ctx.strokeRect(powerUp.x, powerUp.y, powerUp.width, powerUp.height); // White border
+          });
+
+          // Draw weapon range indicator
+          if (gameState.keys.shoot && gameState.player.weapon.cooldown === 0) {
+            ctx.beginPath();
+            ctx.arc(
+              gameState.player.x + gameState.player.width / 2,
+              gameState.player.y + gameState.player.height / 2,
+              gameState.player.weapon.range,
+              0,
+              Math.PI * 2
+            );
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.fill();
+          }
+
+          // Draw player
+          ctx.fillStyle = '#4a4';
+          if (gameState.player.speedBoostActive) {
+              ctx.fillStyle = 'rgba(0, 255, 0, 0.8)'; // Greenish when speed boosted
+          } else {
+              ctx.fillStyle = '#4a4';
+          }
+          ctx.fillRect(
+            gameState.player.x,
+            gameState.player.y,
+            gameState.player.width,
+            gameState.player.height
+          );
+
+          // Draw ghost if visible
+          if (gameState.ghost.isVisible) {
+            ctx.fillStyle = '#a44';
+            ctx.fillRect(
+              gameState.ghost.x,
+              gameState.ghost.y,
+              gameState.ghost.width,
+              gameState.ghost.height
+            );
+          }
+
+          // Draw UI
+          ctx.fillStyle = '#fff';
+          ctx.font = '16px Arial';
+          ctx.fillText(`Level: ${gameState.level}`, 20, 30);
+          ctx.fillText(`Score: ${gameState.player.score}`, 20, 50);
+
+          // Health bars - Make sure these are drawn!
+          // Player health
+          ctx.fillStyle = '#222';
+          ctx.fillRect(20, 70, 200, 20);
+          ctx.fillStyle = '#4a4';
+          ctx.fillRect(20, 70, gameState.player.health * 2, 20);
+          ctx.fillStyle = '#fff';
+          ctx.fillText('Player Health', 85, 85); // Ensure text is drawn
+
+          // Ghost health
+          ctx.fillStyle = '#222';
+          ctx.fillRect(20, 100, 200, 20);
+          ctx.fillStyle = '#a44';
+          ctx.fillRect(20, 100, gameState.ghost.health * 2, 20);
+          ctx.fillStyle = '#fff';
+          ctx.fillText('Ghost Health', 85, 115); // Ensure text is drawn
+
+
+          // Game over screen
+          if (gameState.gameOver) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#fff';
+            ctx.font = '36px Arial';
+            ctx.fillText('GAME OVER', canvas.width / 2 - 100, canvas.height / 2 - 40);
+
+            ctx.font = '24px Arial';
+            ctx.fillText(`Final Score: ${gameState.player.score}`, canvas.width / 2 - 80, canvas.height / 2);
+            ctx.fillText('Press R to restart', canvas.width / 2 - 90, canvas.height / 2 + 40);
+          }
+        }
+
+        // Main game loop
+        function gameLoop() {
+          update();
+          render();
+          requestAnimationFrame(gameLoop);
+        }
+
+        // Event listeners for keyboard input
+        document.addEventListener('keydown', (e) => {
+          switch (e.key) {
+            case 'w':
+            case 'ArrowUp':
+              gameState.keys.up = true;
+              break;
+            case 's':
+            case 'ArrowDown':
+              gameState.keys.down = true;
+              break;
+            case 'a':
+            case 'ArrowLeft':
+              gameState.keys.left = true;
+              break;
+            case 'd':
+            case 'ArrowRight':
+              gameState.keys.right = true;
+              break;
+            case ' ':
+              gameState.keys.shoot = true;
+              break;
+            case 'r':
+              if (gameState.gameOver) {
+                gameState.player.health = 100;
+                gameState.player.score = 0;
+                gameState.level = 1;
+                initGame();
+              }
+              break;
+            case 'f': // Toggle fullscreen with 'f' key
+            case 'F':
+              toggleFullscreen();
+              break;
+          }
+        });
+
+        document.addEventListener('keyup', (e) => {
+          switch (e.key) {
+            case 'w':
+            case 'ArrowUp':
+              gameState.keys.up = false;
+              break;
+            case 's':
+            case 'ArrowDown':
+              gameState.keys.down = false;
+              break;
+            case 'a':
+            case 'ArrowLeft':
+              gameState.keys.left = false;
+              break;
+            case 'd':
+            case 'ArrowRight':
+              gameState.keys.right = false;
+              break;
+            case ' ':
+              gameState.keys.shoot = false;
+              break;
+          }
+        });
+
+        // Fullscreen functionality
+        const fullscreenButton = document.getElementById('fullscreenButton');
+
+        function toggleFullscreen() {
+            if (!canvas.requestFullscreen) { // Check if Fullscreen API is supported on canvas
+                alert("Fullscreen API is not supported in this browser for canvas.");
+                return;
+            }
+            if (!document.fullscreenElement) {
+                canvas.requestFullscreen().catch(err => { // Request fullscreen for canvas only
+                    alert(`Error attempting to enable fullscreen mode: ${err.message} (${err.name})`);
+                });
+            } else {
+                document.exitFullscreen(); // Exit fullscreen for document, which will exit canvas fullscreen as well
+            }
+        }
+
+        fullscreenButton.addEventListener('click', toggleFullscreen);
+
+        // Initialize and start game
+        window.onload = function() {
+          initGame();
+          gameLoop();
+        };
+    </script>
+</body>
+</html>
