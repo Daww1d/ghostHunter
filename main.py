@@ -43,6 +43,14 @@ idleD = animations.animation("down", "idle" , 4)
 for x in range(idleD.loop):
     idleD.animation.append(spriteSheetIdle.get_image(x, 16, 16, 4, 1))
 
+idleAnimations = {
+    "left" : idleL.animation,
+    "right" : idleR.animation,
+    "down" : idleD.animation,
+    "up" : idleU.animation
+}
+
+
 BG = (50, 50, 50)
 BLACK = (0, 0, 0)
 
@@ -65,6 +73,18 @@ def checkInput(key, value):
     elif key == pygame.K_DOWN:
         playerInput["down"] = value
 
+def setDirection(key):
+    if key == pygame.K_LEFT:
+        playerDirection = "left"
+    elif key == pygame.K_RIGHT:
+        playerDirection = "right"
+    elif key == pygame.K_UP:
+        playerDirection = "up"
+    elif key == pygame.K_DOWN:
+        playerDirection = "down"
+
+    return playerDirection
+
 
 while run:
 
@@ -73,6 +93,7 @@ while run:
             run = False
         elif event.type == pygame.KEYDOWN:
             checkInput(event.key, True)
+            playerDirection = setDirection(event.key)
         elif event.type == pygame.KEYUP:
             checkInput(event.key, False)
 
@@ -90,8 +111,7 @@ while run:
         if frame >= len(idleU.animation):
             frame = 0
 
-
-    screen.blit(idleU.animation[frame], (playerX, playerY))
+    screen.blit(idleAnimations[playerDirection][frame], (playerX, playerY))
 
     screen.blit(idleR.animation[frame], (0 , 0) )
     screen.blit(idleD.animation[frame], (70 , 0) )
@@ -100,7 +120,6 @@ while run:
 
     playerX += playerVelocity[0] * playerSpeed
     playerY += playerVelocity[1] * playerSpeed
-
 
     clock.tick(FPS)
     pygame.display.update()
