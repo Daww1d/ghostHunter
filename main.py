@@ -22,6 +22,10 @@ clock = pygame.time.Clock()
 sprite_sheet_idle = pygame.image.load("assets\idle.png").convert_alpha()
 spriteSheetIdle = spriteSheet.spriteSheet(sprite_sheet_idle)
 
+sprite_sheet_walk = pygame.image.load("assets\walk.png").convert_alpha()
+spriteSheetWalk = spriteSheet.spriteSheet(sprite_sheet_walk)
+
+#clcok and animation timer
 lastUpdate = pygame.time.get_ticks()
 animationCooldown = 250
 frame = 0
@@ -50,16 +54,47 @@ idleAnimations = {
     "up" : idleU.animation
 }
 
+walkR = animations.animation("right", "walk", 8)
+for x in range(walkR.loop):
+    walkR.animation.append(spriteSheetWalk.get_image(x, 16, 16, 4,))
+
+walkU = animations.animation("up", "walk" , 8)
+for x in range(walkU.loop):
+    walkU.animation.append(spriteSheetWalk.get_image(x, 16, 16, 4, 2))
+
+walkL = animations.animation("left", "walk" , 8)
+for x in range(walkL.loop):
+    walkL.animation.append(spriteSheetWalk.get_image(x, 16, 16, 4, 0, 1))
+
+walkD = animations.animation("down", "walk" , 8)
+for x in range(walkD.loop):
+    walkD.animation.append(spriteSheetWalk.get_image(x, 16, 16, 4, 1))
+
+walkAnimations = {
+    "left" : walkL.animation,
+    "right" : walkR.animation,
+    "down" : walkD.animation,
+    "up" : walkU.animation
+}
+
 
 BG = (50, 50, 50)
 BLACK = (0, 0, 0)
 
 
-playerX = 0
-playerY = 0
+bg = pygame.image.load("assets\grass.png").convert()
+bg = pygame.transform.scale(bg, (1200,800))
+
+playerX = 100
+playerY = 100
 playerInput = {"left": False, "right": False, "up": False, "down": False}
 playerVelocity = [0, 0]
 playerDirection = "right"
+playerStatus = "idle"
+currentAnimation = {
+    "idle" : idleAnimations,
+    "walk" : walkAnimations
+}
 
 playerSpeed = 5
 
@@ -73,17 +108,17 @@ def checkInput(key, value):
     elif key == pygame.K_DOWN:
         playerInput["down"] = value
 
-def setDirection(key):
+def setDirection(key ,currentDirection):
     if key == pygame.K_LEFT:
-        playerDirection = "left"
+        return "left"
     elif key == pygame.K_RIGHT:
-        playerDirection = "right"
+        return "right"
     elif key == pygame.K_UP:
-        playerDirection = "up"
+        return "up"
     elif key == pygame.K_DOWN:
-        playerDirection = "down"
+        return "down"
 
-    return playerDirection
+    return currentDirection
 
 
 while run:
@@ -93,25 +128,31 @@ while run:
             run = False
         elif event.type == pygame.KEYDOWN:
             checkInput(event.key, True)
-            playerDirection = setDirection(event.key)
+            playerDirection = setDirection(event.key, playerDirection)
         elif event.type == pygame.KEYUP:
             checkInput(event.key, False)
 
     playerVelocity[0] = playerInput["right"] - playerInput["left"]
     playerVelocity[1] = playerInput["down"] - playerInput["up"]
+    
+    if playerVelocity[0] != 0 or playerVelocity[1] != 0:
+        playerStatus = "walk"
+    else:
+        playerStatus = "idle"
 
     screen.fill(BG)
+    screen.blit(bg, (0,0))
+    
     #update animatiion
     currentTime =  pygame.time.get_ticks()
     if currentTime - lastUpdate >= animationCooldown:
         frame += 1
         lastUpdate = currentTime
-        if frame >= len(idleR.animation):
-            frame = 0
-        if frame >= len(idleU.animation):
+        #if frame >= len(currentAnimation[playerStatus][playerDirection]): #bug here not sure how to fix
+        if frame >= 4: 
             frame = 0
 
-    screen.blit(idleAnimations[playerDirection][frame], (playerX, playerY))
+    screen.blit(currentAnimation[playerStatus][playerDirection][frame], (playerX, playerY))
 
     screen.blit(idleR.animation[frame], (0 , 0) )
     screen.blit(idleD.animation[frame], (70 , 0) )
