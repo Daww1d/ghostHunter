@@ -123,6 +123,7 @@ playerInput = {"left": False, "right": False, "up": False, "down": False}
 playerVelocity = [0, 0]
 playerDirection = "right"
 playerStatus = "idle"
+sprintStatus = False
 currentAnimation = {
     "idle" : idleAnimations,
     "walk" : walkAnimations,
@@ -140,9 +141,7 @@ def checkInput(key, value):
         playerInput["up"] = value
     elif key == pygame.K_DOWN:
         playerInput["down"] = value
-    elif key == pygame.K_LSHIFT:
-        playerStatus = "run"    
-
+        
 def setDirection(key ,currentDirection):
     if key == pygame.K_LEFT:
         return "left"
@@ -163,16 +162,23 @@ while run:
             run = False
         elif event.type == pygame.KEYDOWN:
             checkInput(event.key, True)
+            if event.key == pygame.K_LSHIFT:
+                sprintStatus = True    
+
             playerDirection = setDirection(event.key, playerDirection)
         elif event.type == pygame.KEYUP:
             checkInput(event.key, False)
+            if event.key == pygame.K_LSHIFT:
+                sprintStatus = False
 
     playerVelocity[0] = playerInput["right"] - playerInput["left"]
     playerVelocity[1] = playerInput["down"] - playerInput["up"]
     
     if playerVelocity[0] != 0 or playerVelocity[1] != 0:
         playerStatus = "walk"
-    else:
+    if sprintStatus == True and (playerVelocity[0] != 0 or playerVelocity[1] != 0):
+        playerStatus = "run"
+    if playerVelocity[0] == 0 and playerVelocity[1] == 0:
         playerStatus = "idle"
 
     screen.fill(BG)
@@ -208,8 +214,13 @@ while run:
     screen.blit(idleL.animation[frame[idleR.type]], (140 , 0) )
 
 
-    playerX += playerVelocity[0] * playerSpeed
-    playerY += playerVelocity[1] * playerSpeed
+    if sprintStatus == True:
+        mult = 1.5
+    else:
+        mult = 1
+
+    playerX += playerVelocity[0] * playerSpeed * mult
+    playerY += playerVelocity[1] * playerSpeed * mult
 
     clock.tick(FPS)
     pygame.display.update()
