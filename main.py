@@ -25,12 +25,19 @@ spriteSheetIdle = spriteSheet.spriteSheet(sprite_sheet_idle)
 sprite_sheet_walk = pygame.image.load("assets\walk.png").convert_alpha()
 spriteSheetWalk = spriteSheet.spriteSheet(sprite_sheet_walk)
 
+sprite_sheet_run = pygame.image.load("assets\sprint.png").convert_alpha()
+spriteSheetRun = spriteSheet.spriteSheet(sprite_sheet_run)
+
 #clcok and animation timer
 lastUpdate = pygame.time.get_ticks()
 animationCooldown = 250
-frame = 0
-
+idleFrame = 0
+runFrame = 0
+walkFrame = 0
+ 
 #animation list
+
+#idle
 idleR = animations.animation("right", "idle", 4)
 for x in range(idleR.loop):
     idleR.animation.append(spriteSheetIdle.get_image(x, 16, 16, 4,))
@@ -54,6 +61,7 @@ idleAnimations = {
     "up" : idleU.animation
 }
 
+#walking
 walkR = animations.animation("right", "walk", 8)
 for x in range(walkR.loop):
     walkR.animation.append(spriteSheetWalk.get_image(x, 16, 16, 4,))
@@ -77,6 +85,30 @@ walkAnimations = {
     "up" : walkU.animation
 }
 
+#running
+runR = animations.animation("right", "run", 8)
+for x in range(runR.loop):
+    runR.animation.append(spriteSheetRun.get_image(x, 16, 16, 4,))
+
+runU = animations.animation("up", "run" , 8)
+for x in range(runU.loop):
+    runU.animation.append(spriteSheetRun.get_image(x, 16, 16, 4, 2))
+
+runL = animations.animation("left", "run" , 8)
+for x in range(runL.loop):
+    runL.animation.append(spriteSheetRun.get_image(x, 16, 16, 4, 0, 1))
+
+runD = animations.animation("down", "run" , 8)
+for x in range(runD.loop):
+    runD.animation.append(spriteSheetRun.get_image(x, 16, 16, 4, 1))
+
+runAnimations = {
+    "left" : runL.animation,
+    "right" : runR.animation,
+    "down" : runD.animation,
+    "up" : runU.animation
+}
+
 
 BG = (50, 50, 50)
 BLACK = (0, 0, 0)
@@ -93,7 +125,8 @@ playerDirection = "right"
 playerStatus = "idle"
 currentAnimation = {
     "idle" : idleAnimations,
-    "walk" : walkAnimations
+    "walk" : walkAnimations,
+    "run" : runAnimations
 }
 
 playerSpeed = 5
@@ -107,6 +140,8 @@ def checkInput(key, value):
         playerInput["up"] = value
     elif key == pygame.K_DOWN:
         playerInput["down"] = value
+    elif key == pygame.K_LSHIFT:
+        playerStatus = "run"    
 
 def setDirection(key ,currentDirection):
     if key == pygame.K_LEFT:
@@ -146,17 +181,31 @@ while run:
     #update animatiion
     currentTime =  pygame.time.get_ticks()
     if currentTime - lastUpdate >= animationCooldown:
-        frame += 1
+        idleFrame += 1
+        walkFrame += 1
+        runFrame += 1
         lastUpdate = currentTime
         #if frame >= len(currentAnimation[playerStatus][playerDirection]): #bug here not sure how to fix
-        if frame >= 4: 
-            frame = 0
+        if idleFrame >= len(idleD.animation):
+            idleFrame = 0
+        if walkFrame >= len(walkD.animation):
+            walkFrame = 0
+        if runFrame >= len(runD.animation):
+            runFrame = 0
 
-    screen.blit(currentAnimation[playerStatus][playerDirection][frame], (playerX, playerY))
 
-    screen.blit(idleR.animation[frame], (0 , 0) )
-    screen.blit(idleD.animation[frame], (70 , 0) )
-    screen.blit(idleL.animation[frame], (140 , 0) )
+    frame = {
+    "idle" : idleFrame,
+    "walk" : walkFrame,
+    "run" : runFrame
+    }
+
+    #player
+    screen.blit(currentAnimation[playerStatus][playerDirection][frame[playerStatus]], (playerX, playerY))
+
+    screen.blit(walkR.animation[frame[walkR.type]], (0 , 0) )
+    screen.blit(runR.animation[frame[runR.type]], (70 , 0) )
+    screen.blit(idleL.animation[frame[idleR.type]], (140 , 0) )
 
 
     playerX += playerVelocity[0] * playerSpeed
