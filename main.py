@@ -112,7 +112,9 @@ runAnimations = {
 
 BG = (50, 50, 50)
 BLACK = (0, 0, 0)
-
+RED = (255, 0 ,0)
+col = RED
+GREEN = (0,255, 0)
 
 bg = pygame.image.load("assets\grass.png").convert()
 bg = pygame.transform.scale(bg, (1200,800))
@@ -142,7 +144,7 @@ def checkInput(key, value):
     elif key == pygame.K_DOWN:
         playerInput["down"] = value
         
-def setDirection(key ,currentDirection):
+def setDirection(key, currentDirection):
     if key == pygame.K_LEFT:
         return "left"
     elif key == pygame.K_RIGHT:
@@ -153,6 +155,10 @@ def setDirection(key ,currentDirection):
         return "down"
 
     return currentDirection
+
+
+#death cube
+redCube = pygame.Rect(700, 340, 25, 25)
 
 
 while run:
@@ -182,6 +188,8 @@ while run:
         playerStatus = "idle"
 
     screen.fill(BG)
+    playerCollisionBox = pygame.Rect(playerX, playerY, 64, 64)
+    pygame.draw.rect(screen, BLACK, playerCollisionBox)
     screen.blit(bg, (0,0))
     
     #update animatiion
@@ -206,12 +214,21 @@ while run:
     "run" : runFrame
     }
 
-    #player
+    col = RED
+    if redCube.colliderect(playerCollisionBox):
+        col = GREEN
+
+
+    #DEATH cube
+    pygame.draw.rect(screen, col, redCube)
+
+
     screen.blit(currentAnimation[playerStatus][playerDirection][frame[playerStatus]], (playerX, playerY))
 
     screen.blit(walkR.animation[frame[walkR.type]], (0 , 0) )
     screen.blit(runR.animation[frame[runR.type]], (70 , 0) )
     screen.blit(idleL.animation[frame[idleR.type]], (140 , 0) )
+
 
 
     if sprintStatus == True:
