@@ -15,3 +15,6 @@ class spriteSheet:
         image.set_colorkey(BLACK)
 
         return image
+    
+    def createAnimation(self):
+        pass
