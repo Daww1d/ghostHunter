@@ -213,13 +213,18 @@ while run:
     if character.velocity[0] == 0 and character.velocity[1] == 0:
         character.status = "idle"
 
+    if character.sprint == True:
+        mult = 1.5
+    else:
+        mult = 1
+
     #collision checker
     for object in wallList:
         #check for y collisions 
-        if object.colliderect(playerCollisionBox.x , playerCollisionBox.y + (character.velocity[1] * character.speed), 62 , 62):
+        if object.colliderect(playerCollisionBox.x , playerCollisionBox.y + (character.velocity[1] * character.speed * mult), 62 , 62):
             character.velocity[1] = 0
         #check for x collision
-        if object.colliderect(playerCollisionBox.x + (character.velocity[0] * character.speed) , playerCollisionBox.y, 62 , 62):
+        if object.colliderect(playerCollisionBox.x + (character.velocity[0] * character.speed * mult) , playerCollisionBox.y, 62 , 62):
             character.velocity[0] = 0
 
 
@@ -265,12 +270,6 @@ while run:
     #screen.blit(runR.animation[frame[runR.type]], (70 , 0) )
     #screen.blit(idleL.animation[frame[idleR.type]], (140 , 0) )
 
-
-
-    if character.sprint == True:
-        mult = 1.5
-    else:
-        mult = 1
 
     #player movement
     character.playerX += character.velocity[0] * character.speed * mult
