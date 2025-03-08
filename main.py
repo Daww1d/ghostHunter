@@ -187,16 +187,10 @@ while run:
     wallList = [wall]
     collisionList = [redCube]
 
+
+
     #collision detection
     collideState = False
-    for object in wallList:
-        if object.colliderect(playerCollisionBox):
-            print(f"{object} collision")
-            collideState = True
-    for object in collisionList:
-        if object.colliderect(playerCollisionBox):
-            col = GREEN
-            print(f"{object} collision")
 
 
     if collideState == False:
@@ -212,6 +206,22 @@ while run:
         character.status = "run"
     if character.velocity[0] == 0 and character.velocity[1] == 0:
         character.status = "idle"
+
+    #collision checker
+    for object in wallList:
+        #check for y collisions 
+        if object.colliderect(playerCollisionBox.x , playerCollisionBox.y + (character.velocity[1] * character.speed), 62 , 62):
+            character.velocity[1] = 0
+        #check for x collision
+        if object.colliderect(playerCollisionBox.x + (character.velocity[0] * character.speed) , playerCollisionBox.y, 62 , 62):
+            character.velocity[0] = 0
+
+
+    for object in collisionList:
+        if object.colliderect(playerCollisionBox):
+            col = GREEN
+            print(f"{object} collision")
+
 
     screen.fill(BG)
     playerCollisionBox = pygame.Rect(character.playerX + 1, character.playerY + 1, 62, 62)
@@ -259,6 +269,7 @@ while run:
     else:
         mult = 1
 
+    #player movement
     character.playerX += character.velocity[0] * character.speed * mult
     character.playerY += character.velocity[1] * character.speed * mult
 
