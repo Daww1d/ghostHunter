@@ -117,7 +117,7 @@ RED = (255, 0 ,0)
 col = RED
 GREEN = (0,255, 0)
 
-bg = pygame.image.load("assets\grass.png").convert()
+bg = pygame.image.load("assets\pixil.png").convert()
 bg = pygame.transform.scale(bg, (1200,800))
 
 currentAnimation = {
@@ -158,6 +158,11 @@ def setDirection(key, currentDirection):
 redCube = pygame.Rect(700, 340, 25, 25)
 #wall
 wall = pygame.Rect(900,500, 100, 25)
+#
+topWall = pygame.Rect(0,0, 1200, 65)
+bottomWall = pygame.Rect(0,760, 1200, 40)
+leftWall = pygame.Rect(0,0, 50, 800)
+rightWall = pygame.Rect(1150,0, 50, 800)
 
 while run:
 
@@ -179,15 +184,16 @@ while run:
     playerCollisionBox = pygame.Rect(character.playerX + 1, character.playerY + 1, 62, 62)
     pygame.draw.rect(screen, BLACK, playerCollisionBox)
     screen.blit(bg, (0,0))
-    
+    #walls
+    pygame.draw.rect(screen, BLACK, topWall)
+
+        
 #coll detection
 
     col = RED
 
-    wallList = [wall]
+    wallList = [topWall, bottomWall, leftWall, rightWall]
     collisionList = [redCube]
-
-
 
     #collision detection
     collideState = False
@@ -220,7 +226,7 @@ while run:
     for object in collisionList:
         if object.colliderect(playerCollisionBox):
             col = GREEN
-            print(f"{object} collision")
+            #print(f"{object} collision")
 
 
     screen.fill(BG)
@@ -252,15 +258,12 @@ while run:
 
     #DEATH cube
     pygame.draw.rect(screen, col, redCube)
-    #draw stuff
-    pygame.draw.rect(screen, BLACK, wall)
-
 
     screen.blit(currentAnimation[character.status][character.direction][frame[character.status]], (character.playerX, character.playerY))
 
-    screen.blit(walkR.animation[frame[walkR.type]], (0 , 0) )
-    screen.blit(runR.animation[frame[runR.type]], (70 , 0) )
-    screen.blit(idleL.animation[frame[idleR.type]], (140 , 0) )
+    #screen.blit(walkR.animation[frame[walkR.type]], (0 , 0) )
+    #screen.blit(runR.animation[frame[runR.type]], (70 , 0) )
+    #screen.blit(idleL.animation[frame[idleR.type]], (140 , 0) )
 
 
 
