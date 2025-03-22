@@ -12,3 +12,8 @@ class Player:
         self.status = "idle"
         self.sprint = False
         self.speed = speed
+        self.health = 100
+        self.maxHealth = 100
+        self.stamina = 50
+        self.maxStamina = 50
+        self.collided = False

@@ -19,6 +19,16 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Test")
 clock = pygame.time.Clock()
 
+#hp
+tickCooldown = 300
+currentDamage = pygame.time.get_ticks()
+lastDamage = 0
+#stam
+stamCooldown = 2000
+lastStamTick = pygame.time.get_ticks()
+regen = False
+
+
 #load assets
 sprite_sheet_idle = pygame.image.load("assets\idle.png").convert_alpha()
 spriteSheetIdle = spriteSheet.spriteSheet(sprite_sheet_idle)
@@ -116,6 +126,7 @@ BLACK = (0, 0, 0)
 RED = (255, 0 ,0)
 col = RED
 GREEN = (0,255, 0)
+BLUE = (0,0,255)
 
 bg = pygame.image.load("assets\pixil.png").convert()
 bg = pygame.transform.scale(bg, (1200,800))
@@ -164,7 +175,13 @@ bottomWall = pygame.Rect(0,760, 1200, 40)
 leftWall = pygame.Rect(0,0, 50, 800)
 rightWall = pygame.Rect(1150,0, 50, 800)
 
+
+
 while run:
+
+    currentTime =  pygame.time.get_ticks()
+    currentDamage = pygame.time.get_ticks()
+    currentStamTick = pygame.time.get_ticks()
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -179,6 +196,7 @@ while run:
             checkInput(event.key, False)
             if event.key == pygame.K_LSHIFT:
                 character.sprint = False
+
 #draw map + stuff
     screen.fill(BG)
     playerCollisionBox = pygame.Rect(character.playerX + 1, character.playerY + 1, 62, 62)
@@ -187,7 +205,20 @@ while run:
     #walls
     pygame.draw.rect(screen, BLACK, topWall)
 
-        
+#stamina + healthbars
+
+    healthBar = pygame.Rect(550,600,character.health * 5,40)
+    healthBar.center = (600,695)
+    healthBarBorder = pygame.Rect(550,600,character.health * 5 + 10,50)
+    healthBarBorder.center = (600,695)
+
+    staminaBar = pygame.Rect(575,675,character.stamina * 5,40)
+    staminaBarBorder = pygame.Rect(575,675,character.stamina * 5 + 10,50) 
+    staminaBar.center = (600,750)
+    staminaBarBorder.center = (600,750)
+
+
+
 #coll detection
 
     col = RED
@@ -214,9 +245,23 @@ while run:
         character.status = "idle"
 
     if character.sprint == True:
-        mult = 1.5
+        if character.stamina > 0:
+            mult = 1.5
+            character.stamina -= 1
+        else:
+            mult = 1
     else:
         mult = 1
+        if character.stamina < character.maxStamina:
+            if currentStamTick - lastStamTick >= stamCooldown:
+                regen = True
+                lastStamTick = currentStamTick
+
+    if character.stamina >= 50:
+        regen = False
+
+    if regen == True:
+        character.stamina += 1
 
     #collision checker
     for object in wallList:
@@ -231,6 +276,10 @@ while run:
     for object in collisionList:
         if object.colliderect(playerCollisionBox):
             col = GREEN
+            if currentDamage - lastDamage >= tickCooldown:
+                if character.health >= 0:
+                    character.health -= 5
+                    lastDamage = currentDamage
             #print(f"{object} collision")
 
 
@@ -238,9 +287,8 @@ while run:
     playerCollisionBox = pygame.Rect(character.playerX + 1, character.playerY + 1, 62, 62)
     pygame.draw.rect(screen, BLACK, playerCollisionBox)
     screen.blit(bg, (0,0))
-    
+
     #update animatiion
-    currentTime =  pygame.time.get_ticks()
     if currentTime - lastUpdate >= animationCooldown:
         idleFrame += 1
         walkFrame += 1
@@ -264,7 +312,18 @@ while run:
     #DEATH cube
     pygame.draw.rect(screen, col, redCube)
 
+    #draw player
+
     screen.blit(currentAnimation[character.status][character.direction][frame[character.status]], (character.playerX, character.playerY))
+
+    #draw healthbars
+
+    pygame.draw.rect(screen, BLACK, healthBarBorder)
+    pygame.draw.rect(screen, RED, healthBar)
+    pygame.draw.rect(screen, BLACK, staminaBarBorder)   
+    pygame.draw.rect(screen, BLUE, staminaBar)
+
+    
 
     #screen.blit(walkR.animation[frame[walkR.type]], (0 , 0) )
     #screen.blit(runR.animation[frame[runR.type]], (70 , 0) )
