@@ -143,23 +143,23 @@ character = player.Player(100,100, "up", 5)
 #playerSpeed = 5
 
 def checkInput(key, value):
-    if key == pygame.K_LEFT:
+    if key == pygame.K_a:
         character.inputs["left"] = value
-    elif key == pygame.K_RIGHT:
+    elif key == pygame.K_d:
         character.inputs["right"] = value
-    elif key == pygame.K_UP:
+    elif key == pygame.K_w:
         character.inputs["up"] = value
-    elif key == pygame.K_DOWN:
+    elif key == pygame.K_s:
         character.inputs["down"] = value
         
 def setDirection(key, currentDirection):
-    if key == pygame.K_LEFT:
+    if key == pygame.K_a:
         return "left"
-    elif key == pygame.K_RIGHT:
+    elif key == pygame.K_d:
         return "right"
-    elif key == pygame.K_UP:
+    elif key == pygame.K_w:
         return "up"
-    elif key == pygame.K_DOWN:
+    elif key == pygame.K_s:
         return "down"
 
     return currentDirection
